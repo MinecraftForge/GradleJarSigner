@@ -1,0 +1,87 @@
+plugins {
+    id 'org.cadixdev.licenser' version '0.6.1'
+    id 'maven-publish'
+    id 'java'
+    id 'java-gradle-plugin'
+    id 'eclipse'
+    id 'net.minecraftforge.gradleutils' version '2.0.11'
+}
+
+repositories {
+    mavenCentral()
+}
+
+group = 'net.minecraftforge'
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+java.withSourcesJar()
+
+license {
+    header project.file('LICENSE-header.txt')
+    include 'net/minecraftforge/**/*.java'
+    newLine false
+}
+
+version = gradleutils.tagOffsetVersion
+println('Version: ' + version)
+
+gradlePlugin {
+    plugins {
+        gradlejarsigner {
+            id = 'net.minecraftforge.gradlejarsigner'
+            implementationClass = 'net.minecraftforge.gradlejarsigner.GradleJarSignerPlugin'
+        }
+    }
+}
+
+dependencies {
+}
+
+compileJava {
+    options.encoding = 'UTF-8'
+}
+
+jar {
+    manifest {
+        attributes([
+            'Specification-Title':      'GradleJarSigner',
+            'Specification-Vendor':     'Forge Development LLC',
+            'Specification-Version':    gradleutils.gitInfo.tag,
+            'Implementation-Title':     'SimpleGradleJarSigner',
+            'Implementation-Version':   project.version,
+            'Implementation-Vendor':    'Forge Development LLC'
+        ] as LinkedHashMap, 'net/minecraftforge/GradleJarSigner/')
+    }
+}
+
+publishing {
+    publications {
+        pluginMaven(MavenPublication) {
+            pom {
+                packaging = 'jar'
+                description = 'Gradle Jar Signer Plugin'
+                url = 'https://github.com/MinecraftForge/GradleJarSigner'
+
+                scm {
+                    url = 'https://github.com/MinecraftForge/GradleJarSigner'
+                    connection = 'scm:git:git://github.com/MinecraftForge/GradleJarSigner.git'
+                    developerConnection = 'scm:git:git@github.com:MinecraftForge/GradleJarSigner.git'
+                }
+
+                issueManagement {
+                    system = 'github'
+                    url = 'https://github.com/MinecraftForge/GradleJarSigner/issues'
+                }
+
+                developers {
+                    developer {
+                        id = 'LexManos'
+                        name = 'Lex Manos'
+                    }
+                }
+            }
+        }
+    }
+    repositories {
+        maven gradleutils.publishingForgeMaven
+    }
+}
