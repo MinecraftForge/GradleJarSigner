@@ -5,6 +5,7 @@
 package net.minecraftforge.gradlejarsigner;
 
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -23,10 +24,12 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import org.gradle.api.Task;
+import org.gradle.api.tasks.TaskInputs;
 import org.gradle.api.file.FileTreeElement;
 import org.gradle.api.file.FileVisitDetails;
 import org.gradle.api.file.FileVisitor;
 import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.Property;
 import org.gradle.api.specs.Spec;
 import org.gradle.api.tasks.Internal;
@@ -56,7 +59,7 @@ public class SignTask implements PatternFilterable {
         if (this.config != null)
             this.config.setDelegate(this);
 
-        var objs = this.parent.getProject().getObjects();
+        ObjectFactory objs = this.parent.getProject().getObjects();
 
         this.alias = objs.property(String.class);
         this.storePass = objs.property(String.class);
@@ -77,7 +80,7 @@ public class SignTask implements PatternFilterable {
     }
 
     private Object addProperties() {
-        var in = this.parent.getInputs();
+        TaskInputs in = this.parent.getInputs();
         if (!patternSet.isEmpty()) {
             in.property("signJar.patternSet.excludes", patternSet.getExcludes());
             in.property("signJar.patternSet.includes", patternSet.getIncludes());
@@ -110,12 +113,12 @@ public class SignTask implements PatternFilterable {
     private <T extends Task> void sign(T task) throws IOException {
         final Map<String, Entry<byte[], Long>> ignoredStuff = new HashMap<>();
 
-        var tmp = this.parent.getTemporaryDir();
-        var output = this.parent.getArchiveFile().get().getAsFile();
-        var original = new File(tmp, output.getName() + ".original");
+        File tmp = this.parent.getTemporaryDir();
+        File output = this.parent.getArchiveFile().get().getAsFile();
+        File original = new File(tmp, output.getName() + ".original");
         Files.move(output.toPath(), original.toPath(), StandardCopyOption.REPLACE_EXISTING);
 
-        var input = original;
+        File input = original;
         if (!patternSet.isEmpty()) {
             input = new File(tmp, input.getName() + ".unsigned");
             processInputJar(original, input, ignoredStuff);
@@ -129,14 +132,14 @@ public class SignTask implements PatternFilterable {
                 throw new IllegalStateException("Both KeyStoreFile and KeyStoreData can not be set at the same time");
             keyStore = this.keyStoreFile.get().getAsFile();
         } else if (this.keyStoreData.isPresent()) {
-            var data = Base64.getDecoder().decode(this.keyStoreData.get().getBytes(StandardCharsets.UTF_8));
+            byte[] data = Base64.getDecoder().decode(this.keyStoreData.get().getBytes(StandardCharsets.UTF_8));
             keyStore = new File(tmp, "keystore");
             Files.write(keyStore.toPath(), data);
         } else {
             throw new IllegalArgumentException("SignJar needs either a Base64 encoded KeyStore file, or a path to a KeyStore file");
         }
 
-        var map = new HashMap<String, String>();
+        Map<String, String> map = new HashMap<>();
         map.put("alias", this.alias.get());
         map.put("storePass", this.storePass.get());
         map.put("jar", input.getAbsolutePath());
@@ -157,10 +160,10 @@ public class SignTask implements PatternFilterable {
     }
 
     private void processInputJar(File input, File output, final Map<String, Entry<byte[], Long>> unsigned) throws IOException {
-        var spec = patternSet.getAsSpec();
+        final Spec<FileTreeElement> spec = patternSet.getAsSpec();
 
         output.getParentFile().mkdirs();
-        try (var outs = new JarOutputStream(new BufferedOutputStream(new FileOutputStream(output)))){
+        try (JarOutputStream outs = new JarOutputStream(new BufferedOutputStream(new FileOutputStream(output)))){
             this.parent.getProject().zipTree(input).visit(new FileVisitor() {
                 @Override
                 public void visitDir(FileVisitDetails details) {
@@ -185,7 +188,13 @@ public class SignTask implements PatternFilterable {
                             outs.closeEntry();
                         } else {
                             InputStream stream = details.open();
-                            var data = stream.readAllBytes();
+                            ByteArrayOutputStream tmp = new ByteArrayOutputStream(stream.available());
+                            byte[] buf = new byte[0x100];
+                            int len;
+                            while ((len = stream.read(buf)) != -1)
+                                tmp.write(buf, 0, len);
+
+                            byte[] data = tmp.toByteArray();
                             unsigned.put(details.getPath(), new MapEntry(data, details.getLastModified()));
                             stream.close();
                         }
@@ -202,6 +211,7 @@ public class SignTask implements PatternFilterable {
 
         JarOutputStream outs = new JarOutputStream(new BufferedOutputStream(new FileOutputStream(outputJar)));
 
+        byte[] buf = new byte[0x100];
         ZipFile base = new ZipFile(signedJar);
         for (ZipEntry e : Collections.list(base.entries())) {
             if (e.isDirectory()) {
@@ -210,7 +220,10 @@ public class SignTask implements PatternFilterable {
                 ZipEntry n = new ZipEntry(e.getName());
                 n.setTime(e.getTime());
                 outs.putNextEntry(n);
-                base.getInputStream(e).transferTo(outs);
+                InputStream in = base.getInputStream(e);
+                int len;
+                while ((len = in.read(buf)) != -1)
+                    outs.write(buf, 0, len);
                 outs.closeEntry();
             }
         }

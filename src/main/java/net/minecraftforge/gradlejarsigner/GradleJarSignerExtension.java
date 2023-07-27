@@ -78,7 +78,7 @@ public class GradleJarSignerExtension {
     }
 
     private void set(String key, Consumer<String> prop) {
-        var data = System.getenv(key);
+        String data = System.getenv(key);
         if (data != null)
             prop.accept(data);
         else
