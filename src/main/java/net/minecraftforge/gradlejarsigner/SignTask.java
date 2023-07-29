@@ -98,6 +98,8 @@ public class SignTask implements PatternFilterable {
         try {
             if (hasEnoughInfo())
                 this.sign(task);
+            else
+                task.getLogger().warn("Jar will be unsigned, missing key information");
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

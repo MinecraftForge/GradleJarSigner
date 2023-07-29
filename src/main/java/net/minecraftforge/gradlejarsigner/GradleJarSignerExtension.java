@@ -81,7 +81,5 @@ public class GradleJarSignerExtension {
         String data = System.getenv(key);
         if (data != null)
             prop.accept(data);
-        else
-            this.project.getLogger().warn("Missing " + key + " Environment Variable");
     }
 }

@@ -5,7 +5,6 @@ plugins {
     id 'java-gradle-plugin'
     id 'eclipse'
     id 'net.minecraftforge.gradleutils' version '2.0.11'
-    id 'net.minecraftforge.gradlejarsigner' version '1.0.0'
 }
 
 repositories {
@@ -15,7 +14,6 @@ repositories {
 group = 'net.minecraftforge'
 java.toolchain.languageVersion = JavaLanguageVersion.of(8)
 java.withSourcesJar()
-jarSigner.fromEnvironmentVariables()
 
 license {
     header project.file('LICENSE-header.txt')
@@ -51,10 +49,9 @@ jar {
             'Implementation-Title':     'SimpleGradleJarSigner',
             'Implementation-Version':   project.version,
             'Implementation-Vendor':    'Forge Development LLC'
-        ] as LinkedHashMap, 'net/minecraftforge/GradleJarSigner/')
+        ] as LinkedHashMap, 'net/minecraftforge/gradlejarsigner/')
     }
 }
-jarSigner.sign(jar)
 
 publishing {
     publications {
