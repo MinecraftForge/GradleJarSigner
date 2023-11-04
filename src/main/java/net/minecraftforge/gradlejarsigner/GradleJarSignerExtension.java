@@ -33,10 +33,22 @@ public class GradleJarSignerExtension {
     }
 
     public void fromEnvironmentVariables() {
-        set("SIGN_KEY_ALIAS", this::setAlias);
-        set("SIGN_KEY_PASSWORD", this::setKeyPass);
-        set("SIGN_KEYSTORE_PASSWORD", this::setStorePass);
-        set("SIGN_KEYSTORE_DATA", this::setKeyStoreData);
+        fromEnvironmentVariables(project.getName());
+    }
+
+    public void fromEnvironmentVariables(String prefix) {
+        autoDetect(prefix);
+    }
+
+    public void autoDetect() {
+        autoDetect(project.getName());
+    }
+
+    public void autoDetect(String prefix) {
+        set(prefix, "SIGN_KEY_ALIAS", this::setAlias);
+        set(prefix, "SIGN_KEY_PASSWORD", this::setKeyPass);
+        set(prefix, "SIGN_KEYSTORE_PASSWORD", this::setStorePass);
+        set(prefix, "SIGN_KEYSTORE_DATA", this::setKeyStoreData);
     }
 
     public void setAlias(String value) {
@@ -77,8 +89,19 @@ public class GradleJarSignerExtension {
             task.setKeyStoreFile(this.keyStoreFile);
     }
 
-    private void set(String key, Consumer<String> prop) {
-        String data = System.getenv(key);
+    private void set(String prefix, String key, Consumer<String> prop) {
+        String data = null;
+        if (prefix != null) {
+            data = (String)project.findProperty(prefix + '.' + key);
+            if (data == null)
+                data = System.getenv(prefix + '.' + key);
+        }
+
+        if (data == null)
+            data = (String)project.findProperty(key);
+        if (data == null)
+            data = System.getenv(key);
+
         if (data != null)
             prop.accept(data);
     }

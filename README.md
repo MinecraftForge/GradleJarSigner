@@ -43,13 +43,23 @@ You can also configure the task itself to specify any of the information set in 
 ### Github Secrets
 A large motivation for this was wanting to use Github Actions and still be able to sign my built files. Github does not allow you to have files as [secrets](https://docs.github.com/en/actions/security-guides/encrypted-secrets) just strings and the workarounds I found involved committing a encrypted form of your keystore to your repo and then decrypting it during an Action. Instead I decided to allow you to specify the keystore file as a base64 encoded string which can be used as a Secret.
 
-You can either manually configure the information by pulling the secrets yourself, or I added a simple helper `jarSigner.fromEnvironmentVariables()` which does the following:
+You can either manually configure the information by pulling the secrets yourself, or I added a simple helper `jarSigner.autoDetect()` which which search the following locations in order:
+
+    if (prefix != null) {
+        project.findProperty(prefix + '.' + prop)
+        System.getenv(prefix + '.' + prop)
+    }
+    project.findProperty(prop)
+    System.getenv(prop)
+`prefix` defaults to `project.name` you can override by calling `jarSigner.autoDetect('prefix')`
+
+For the following properties:
 
     jarSigner {
-        alias = System.env('SIGN_KEY_ALIAS')
-        keyPass = System.env('SIGN_KEY_PASSWORD')
-        storePass = System.env('SIGN_KEYSTORE_PASSWORD')
-        keyStoreData = System.env('SIGN_KEYSTORE_DATA')
+        alias = 'SIGN_KEY_ALIAS'
+        keyPass = 'SIGN_KEY_PASSWORD'
+        storePass = 'SIGN_KEYSTORE_PASSWORD'
+        keyStoreData = 'SIGN_KEYSTORE_DATA'
     }
 
 ### Conclusion
