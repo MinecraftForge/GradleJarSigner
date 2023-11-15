@@ -4,7 +4,8 @@ plugins {
     id 'java'
     id 'java-gradle-plugin'
     id 'eclipse'
-    id 'net.minecraftforge.gradleutils' version '2.0.11'
+    id 'net.minecraftforge.gradleutils' version '2.2.0'
+    id 'com.gradle.plugin-publish' version '1.2.1'
 }
 
 repositories {
@@ -17,7 +18,6 @@ java.withSourcesJar()
 
 license {
     header project.file('LICENSE-header.txt')
-    include 'net/minecraftforge/**/*.java'
     newLine false
 }
 
@@ -25,10 +25,15 @@ version = gradleutils.tagOffsetVersion
 println('Version: ' + version)
 
 gradlePlugin {
+    website = 'https://github.com/MinecraftForge/GradleJarSigner'
+    vcsUrl = 'https://github.com/MinecraftForge/GradleJarSigner.git'
     plugins {
         gradlejarsigner {
             id = 'net.minecraftforge.gradlejarsigner'
             implementationClass = 'net.minecraftforge.gradlejarsigner.GradleJarSignerPlugin'
+            displayName = 'Gradle Jar Signer'
+            description = 'Wrapper for Ant signjar, allowing proper task caching'
+            tags.set(['signing', 'java', 'signjar'])
         }
     }
 }
@@ -43,41 +48,35 @@ compileJava {
 jar {
     manifest {
         attributes([
-            'Specification-Title':      'GradleJarSigner',
-            'Specification-Vendor':     'Forge Development LLC',
-            'Specification-Version':    gradleutils.gitInfo.tag,
-            'Implementation-Title':     'SimpleGradleJarSigner',
-            'Implementation-Version':   project.version,
-            'Implementation-Vendor':    'Forge Development LLC'
+            'Specification-Title':   'GradleJarSigner',
+            'Specification-Vendor':  'Forge Development LLC',
+            'Specification-Version':  gradleutils.gitInfo.tag,
+            'Implementation-Title':  'GradleJarSigner',
+            'Implementation-Vendor': 'Forge Development LLC',
+            'Implementation-Version': project.version
         ] as LinkedHashMap, 'net/minecraftforge/gradlejarsigner/')
     }
 }
 
+changelog {
+    fromTag '1.0'
+    publishAll = false
+}
+
 publishing {
-    publications {
-        pluginMaven(MavenPublication) {
-            pom {
-                packaging = 'jar'
-                description = 'Gradle Jar Signer Plugin'
-                url = 'https://github.com/MinecraftForge/GradleJarSigner'
+    publications.register('pluginMaven', MavenPublication) {
+        changelog.publish(it)
+        pom {
+            packaging = 'jar'
+            description = 'Gradle Jar Signer Plugin'
+            url = 'https://github.com/MinecraftForge/GradleJarSigner'
 
-                scm {
-                    url = 'https://github.com/MinecraftForge/GradleJarSigner'
-                    connection = 'scm:git:git://github.com/MinecraftForge/GradleJarSigner.git'
-                    developerConnection = 'scm:git:git@github.com:MinecraftForge/GradleJarSigner.git'
-                }
+            gradleutils.pom.setGitHubDetails(pom, 'GradleJarSigner')
 
-                issueManagement {
-                    system = 'github'
-                    url = 'https://github.com/MinecraftForge/GradleJarSigner/issues'
-                }
+            license gradleutils.pom.licenses.LGPLv2_1
 
-                developers {
-                    developer {
-                        id = 'LexManos'
-                        name = 'Lex Manos'
-                    }
-                }
+            developers {
+                developer gradleutils.pom.Developers.LexManos
             }
         }
     }
