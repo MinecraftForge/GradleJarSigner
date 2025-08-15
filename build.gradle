@@ -1,86 +1,118 @@
+import org.gradle.api.attributes.plugin.GradlePluginApiVersion
+
 plugins {
-    id 'org.cadixdev.licenser' version '0.6.1'
-    id 'maven-publish'
-    id 'java'
     id 'java-gradle-plugin'
+    id 'idea'
     id 'eclipse'
-    id 'net.minecraftforge.gradleutils' version '2.2.0'
-    id 'com.gradle.plugin-publish' version '1.2.1'
+    id 'maven-publish'
+    alias libs.plugins.licenser
+    alias libs.plugins.gradleutils
+    alias libs.plugins.gitversion
+    alias libs.plugins.changelog
+    alias libs.plugins.plugin.publish
 }
 
-repositories {
-    mavenCentral()
-}
-
+final projectDisplayName = 'Gradle Jar Signer Plugin'
+final projectArtifactId = base.archivesName = 'gradlejarsigner'
+final projectVendor = 'Forge Development LLC'
+description = 'Wrapper for Ant signjar, allowing proper task caching'
 group = 'net.minecraftforge'
-java.toolchain.languageVersion = JavaLanguageVersion.of(8)
-java.withSourcesJar()
+version = gitversion.tagOffset
 
-license {
-    header project.file('LICENSE-header.txt')
-    newLine false
+println "Version: $version"
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(8)
+    withSourcesJar()
+    //withJavadocJar()
 }
 
-version = gradleutils.tagOffsetVersion
-println('Version: ' + version)
-
-gradlePlugin {
-    website = 'https://github.com/MinecraftForge/GradleJarSigner'
-    vcsUrl = 'https://github.com/MinecraftForge/GradleJarSigner.git'
-    plugins {
-        gradlejarsigner {
-            id = 'net.minecraftforge.gradlejarsigner'
-            implementationClass = 'net.minecraftforge.gradlejarsigner.GradleJarSignerPlugin'
-            displayName = 'Gradle Jar Signer'
-            description = 'Wrapper for Ant signjar, allowing proper task caching'
-            tags.set(['signing', 'java', 'signjar'])
+configurations {
+    // Applies the "Gradle Plugin API Version" attribute to configuration
+    // This was added in Gradle 7, gives consumers useful errors if they are on an old version
+    def applyGradleVersionAttribute = { Configuration configuration ->
+        configuration.attributes {
+            attribute(GradlePluginApiVersion.GRADLE_PLUGIN_API_VERSION_ATTRIBUTE, objects.named(GradlePluginApiVersion, libs.versions.gradle.get()))
         }
     }
+
+    named('runtimeElements', applyGradleVersionAttribute)
 }
 
 dependencies {
+    // Static Analysis
+    compileOnly libs.nulls
+
+    // Gradle API
+    compileOnly libs.gradle
 }
 
-compileJava {
+license {
+    header = rootProject.file('LICENSE-header.txt')
+    newLine = false
+    exclude '**/*.properties'
+}
+
+tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
-jar {
+tasks.named('jar', Jar) {
     manifest {
         attributes([
-            'Specification-Title':   'GradleJarSigner',
-            'Specification-Vendor':  'Forge Development LLC',
-            'Specification-Version':  gradleutils.gitInfo.tag,
-            'Implementation-Title':  'GradleJarSigner',
-            'Implementation-Vendor': 'Forge Development LLC',
+            'Specification-Title'   : projectDisplayName,
+            'Specification-Vendor'  : projectVendor,
+            'Specification-Version' : gitversion.info.tag,
+            'Implementation-Title'  : projectDisplayName,
+            'Implementation-Vendor' : projectVendor,
             'Implementation-Version': project.version
-        ] as LinkedHashMap, 'net/minecraftforge/gradlejarsigner/')
+        ], 'net/minecraftforge/gradlejarsigner/')
     }
 }
 
 changelog {
-    fromTag '1.0'
+    from '1.0'
     publishAll = false
 }
 
-publishing {
-    publications.register('pluginMaven', MavenPublication) {
-        changelog.publish(it)
-        pom {
-            packaging = 'jar'
-            description = 'Gradle Jar Signer Plugin'
-            url = 'https://github.com/MinecraftForge/GradleJarSigner'
+gradlePlugin {
+    website = gitversion.url
+    vcsUrl = gitversion.url + '.git'
 
-            gradleutils.pom.setGitHubDetails(pom, 'GradleJarSigner')
-
-            license gradleutils.pom.licenses.LGPLv2_1
-
-            developers {
-                developer gradleutils.pom.Developers.LexManos
-            }
-        }
+    plugins.register('gradlejarsigner') {
+        id = 'net.minecraftforge.gradlejarsigner'
+        implementationClass = 'net.minecraftforge.gradlejarsigner.GradleJarSignerPlugin'
+        displayName = projectDisplayName
+        description = project.description
+        tags.set(['signing', 'java', 'signjar'])
     }
+}
+
+publishing {
     repositories {
         maven gradleutils.publishingForgeMaven
     }
+
+    publications.register('pluginMaven', MavenPublication) {
+        artifactId = projectArtifactId
+        changelog.publish(it)
+
+        pom { pom ->
+            name = projectDisplayName
+            description = project.description
+
+            gradleutils.pom.addRemoteDetails(pom)
+
+            licenses {
+                license gradleutils.pom.licenses.LGPLv2_1
+            }
+
+            developers {
+                developer gradleutils.pom.developers.LexManos
+            }
+        }
+    }
 }
+
+idea.module { downloadSources = downloadJavadoc = true }
+eclipse.classpath { downloadSources = downloadJavadoc = true }
