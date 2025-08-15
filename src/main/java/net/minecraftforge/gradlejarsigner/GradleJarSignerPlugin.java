@@ -7,9 +7,14 @@ package net.minecraftforge.gradlejarsigner;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 
-public class GradleJarSignerPlugin implements Plugin<Project> {
+import javax.inject.Inject;
+
+abstract class GradleJarSignerPlugin implements Plugin<Project> {
+    @Inject
+    public GradleJarSignerPlugin() { }
+
     @Override
     public void apply(Project target) {
-        target.getExtensions().create("jarSigner", GradleJarSignerExtension.class, target);
+        target.getExtensions().create(IGradleJarSignerExtension.NAME, GradleJarSignerExtension.class, target);
     }
 }

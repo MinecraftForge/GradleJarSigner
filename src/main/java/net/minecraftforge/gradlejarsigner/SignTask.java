@@ -20,11 +20,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.jar.JarOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import org.codehaus.groovy.runtime.InvokerHelper;
+import org.gradle.api.Action;
 import org.gradle.api.Task;
 import org.gradle.api.file.RegularFile;
 import org.gradle.api.provider.Provider;
@@ -33,68 +35,47 @@ import org.gradle.api.file.FileTreeElement;
 import org.gradle.api.file.FileVisitDetails;
 import org.gradle.api.file.FileVisitor;
 import org.gradle.api.model.ObjectFactory;
-import org.gradle.api.provider.Property;
 import org.gradle.api.specs.Spec;
-import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.bundling.Zip;
 import org.gradle.api.tasks.util.PatternFilterable;
 import org.gradle.api.tasks.util.PatternSet;
 
-import groovy.lang.Closure;
 import groovy.util.MapEntry;
+import org.jetbrains.annotations.Nullable;
 
-public class SignTask implements PatternFilterable {
-    private final GradleJarSignerExtension ext;
+import javax.inject.Inject;
+
+abstract class SignTask implements SignTaskInternal {
+    private final JarSignerInfoContainer container;
     private final Zip parent;
-    private final Closure<SignTask> config;
-    private final Property<String> alias;
-    private final Property<String> storePass;
-    private final Property<String> keyPass;
-    private final Property<String> keyStoreData;
-    private final Property<File> keyStoreFile;
     private final PatternSet patternSet = new PatternSet();
 
-    @SuppressWarnings("serial")
-    SignTask(GradleJarSignerExtension ext, Zip parent, Closure<SignTask> config) {
-        this.ext = ext;
+    protected abstract @Inject ObjectFactory getObjects();
+
+    SignTask(JarSignerInfoContainer container, Zip parent, @Nullable Action<? super ISignTask> config) {
         this.parent = parent;
-        this.config = config;
-        if (this.config != null)
-            this.config.setDelegate(this);
 
-        ObjectFactory objs = this.parent.getProject().getObjects();
+        this.container = this.getObjects().newInstance(JarSignerInfoContainer.class, this.parent.getProject());
 
-        this.alias = objs.property(String.class);
-        this.storePass = objs.property(String.class);
-        this.keyPass = objs.property(String.class);
-        this.keyStoreData = objs.property(String.class);
-        this.keyStoreFile = objs.property(File.class);
-
-        this.parent.configure(new Closure<Object>(parent) {
-            @SuppressWarnings("unused")
-            public Object doCall() {
-                SignTask.this.ext.fill(SignTask.this);
-                if (SignTask.this.config != null)
-                    SignTask.this.config.call();
-                return SignTask.this.addProperties();
-            }
-        });
+        container.fill(this.container);
+        if (config != null)
+            config.execute(this);
+        this.addProperties();
         this.parent.doLast(this::signSafe);
     }
 
-    private Object addProperties() {
+    private void addProperties() {
         TaskInputs in = this.parent.getInputs();
         if (!patternSet.isEmpty()) {
             in.property("signJar.patternSet.excludes", patternSet.getExcludes());
             in.property("signJar.patternSet.includes", patternSet.getIncludes());
         }
-        in.property("signJar.alias", this.alias).optional(true);
-        in.property("signJar.storePass", this.storePass).optional(true);
-        in.property("signJar.keyPass", this.keyPass).optional(true);
-        in.property("signJar.keyStoreData", this.keyStoreData).optional(true);
-        if (this.keyStoreFile.isPresent())
-            in.file(this.keyStoreFile);
-        return null;
+        in.property("signJar.alias", this.container.alias).optional(true);
+        in.property("signJar.storePass", this.container.storePass).optional(true);
+        in.property("signJar.keyPass", this.container.keyPass).optional(true);
+        in.property("signJar.keyStoreData", this.container.keyStoreData).optional(true);
+        if (this.container.keyStoreFile.isPresent())
+            in.file(this.container.keyStoreFile);
     }
 
     private <T extends Task> void signSafe(T task) {
@@ -109,10 +90,10 @@ public class SignTask implements PatternFilterable {
     }
 
     private boolean hasEnoughInfo() {
-        return this.alias.isPresent() &&
-               this.storePass.isPresent() &&
-               this.keyPass.isPresent() &&
-               (this.keyStoreData.isPresent() || this.keyStoreFile.isPresent());
+        return this.container.alias.isPresent() &&
+               this.container.storePass.isPresent() &&
+               this.container.keyPass.isPresent() &&
+               (this.container.keyStoreData.isPresent() || this.container.keyStoreFile.isPresent());
     }
 
     @SuppressWarnings("unchecked")
@@ -153,12 +134,12 @@ public class SignTask implements PatternFilterable {
         }
 
         File keyStore;
-        if (this.keyStoreFile.isPresent()) {
-            if (this.keyStoreData.isPresent())
+        if (this.container.keyStoreFile.isPresent()) {
+            if (this.container.keyStoreData.isPresent())
                 throw new IllegalStateException("Both KeyStoreFile and KeyStoreData can not be set at the same time");
-            keyStore = this.keyStoreFile.get();
-        } else if (this.keyStoreData.isPresent()) {
-            byte[] data = Base64.getDecoder().decode(this.keyStoreData.get().getBytes(StandardCharsets.UTF_8));
+            keyStore = this.container.keyStoreFile.get();
+        } else if (this.container.keyStoreData.isPresent()) {
+            byte[] data = Base64.getDecoder().decode(this.container.keyStoreData.get().getBytes(StandardCharsets.UTF_8));
             keyStore = new File(tmp, "keystore");
             Files.write(keyStore.toPath(), data);
         } else {
@@ -166,18 +147,18 @@ public class SignTask implements PatternFilterable {
         }
 
         Map<String, String> map = new HashMap<>();
-        map.put("alias", this.alias.get());
-        map.put("storePass", this.storePass.get());
+        map.put("alias", this.container.alias.get());
+        map.put("storePass", this.container.storePass.get());
         map.put("jar", input.getAbsolutePath());
         map.put("signedJar", output.getAbsolutePath());
         map.put("keyStore", keyStore.getAbsolutePath());
-        if (this.keyPass.isPresent())
-            map.put("keypass", this.keyPass.get());
+        if (this.container.keyPass.isPresent())
+            map.put("keypass", this.container.keyPass.get());
 
         try {
             this.parent.getProject().getAnt().invokeMethod("signjar", map);
         } finally {
-            if (!this.keyStoreFile.isPresent())
+            if (!this.container.keyStoreFile.isPresent())
                 keyStore.delete();
         }
 
@@ -266,91 +247,13 @@ public class SignTask implements PatternFilterable {
         outs.close();
     }
 
-    public void setAlias(String value) {
-        this.alias.set(value);
-    }
-
-    public void setStorePass(String value) {
-        this.storePass.set(value);
-    }
-
-    public void setKeyPass(String value) {
-        this.keyPass.set(value);
-    }
-
-    /**
-     * A base64 encode string containing the keystore data.
-     * This will be written to a temporary file and then deleted after the task is run.
-     *
-     * @param value Base64 encode keystore
-     */
-    public void setKeyStoreData(String value) {
-        this.keyStoreData.set(value);
-    }
-
-    public void setKeyStoreFile(File value) {
-        this.keyStoreFile.set(value);
+    @Override
+    public JarSignerInfoContainer getContainer() {
+        return this.container;
     }
 
     @Override
-    public PatternFilterable exclude(String... arg0) {
-        return patternSet.exclude(arg0);
-    }
-
-    @Override
-    public PatternFilterable exclude(Iterable<String> arg0) {
-        return patternSet.exclude(arg0);
-    }
-
-    @Override
-    public PatternFilterable exclude(Spec<FileTreeElement> arg0) {
-        return patternSet.exclude(arg0);
-    }
-
-    @Override
-    public PatternFilterable exclude(@SuppressWarnings("rawtypes") Closure arg0) {
-        return patternSet.exclude(arg0);
-    }
-
-    @Internal
-    @Override
-    public Set<String> getExcludes() {
-        return patternSet.getExcludes();
-    }
-
-    @Internal
-    @Override
-    public Set<String> getIncludes() {
-        return patternSet.getIncludes();
-    }
-
-    @Override
-    public PatternFilterable include(String... arg0) {
-        return patternSet.include(arg0);
-    }
-
-    @Override
-    public PatternFilterable include(Iterable<String> arg0) {
-        return patternSet.include(arg0);
-    }
-
-    @Override
-    public PatternFilterable include(Spec<FileTreeElement> arg0) {
-        return patternSet.include(arg0);
-    }
-
-    @Override
-    public PatternFilterable include(@SuppressWarnings("rawtypes") Closure arg0) {
-        return patternSet.include(arg0);
-    }
-
-    @Override
-    public PatternFilterable setExcludes(Iterable<String> arg0) {
-        return patternSet.setExcludes(arg0);
-    }
-
-    @Override
-    public PatternFilterable setIncludes(Iterable<String> arg0) {
-        return patternSet.setIncludes(arg0);
+    public PatternFilterable patternFilterable() {
+        return this.patternSet;
     }
 }
