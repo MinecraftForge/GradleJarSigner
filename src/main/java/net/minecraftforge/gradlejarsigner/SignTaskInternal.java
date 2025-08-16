@@ -14,10 +14,10 @@ import org.gradle.api.tasks.util.PatternFilterable;
 
 import java.util.Set;
 
-interface SignTaskInternal extends ISignTask, JarSignerInfoInternal, HasPublicType {
+interface SignTaskInternal extends SignTask, JarSignerInfoInternal, HasPublicType {
     @Override
     default TypeOf<?> getPublicType() {
-        return TypeOf.typeOf(ISignTask.class);
+        return TypeOf.typeOf(SignTask.class);
     }
 
     PatternFilterable patternFilterable();

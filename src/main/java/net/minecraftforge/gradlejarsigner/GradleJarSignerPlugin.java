@@ -15,6 +15,6 @@ abstract class GradleJarSignerPlugin implements Plugin<Project> {
 
     @Override
     public void apply(Project target) {
-        target.getExtensions().create(IGradleJarSignerExtension.NAME, GradleJarSignerExtension.class, target);
+        target.getExtensions().create(GradleJarSignerExtension.NAME, GradleJarSignerExtensionImpl.class, target);
     }
 }

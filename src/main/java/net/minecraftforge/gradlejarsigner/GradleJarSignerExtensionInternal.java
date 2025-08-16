@@ -7,9 +7,9 @@ package net.minecraftforge.gradlejarsigner;
 import org.gradle.api.reflect.HasPublicType;
 import org.gradle.api.reflect.TypeOf;
 
-interface GradleJarSignerExtensionInternal extends IGradleJarSignerExtension, JarSignerInfoInternal, HasPublicType {
+interface GradleJarSignerExtensionInternal extends GradleJarSignerExtension, JarSignerInfoInternal, HasPublicType {
     @Override
     default TypeOf<?> getPublicType() {
-        return TypeOf.typeOf(IGradleJarSignerExtension.class);
+        return TypeOf.typeOf(GradleJarSignerExtension.class);
     }
 }
