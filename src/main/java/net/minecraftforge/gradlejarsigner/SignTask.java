@@ -17,18 +17,21 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.Map.Entry;
 import java.util.jar.JarOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+import org.codehaus.groovy.runtime.InvokerHelper;
 import org.gradle.api.Task;
+import org.gradle.api.file.RegularFile;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.TaskInputs;
 import org.gradle.api.file.FileTreeElement;
 import org.gradle.api.file.FileVisitDetails;
 import org.gradle.api.file.FileVisitor;
-import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.Property;
 import org.gradle.api.specs.Spec;
@@ -48,7 +51,7 @@ public class SignTask implements PatternFilterable {
     private final Property<String> storePass;
     private final Property<String> keyPass;
     private final Property<String> keyStoreData;
-    private final RegularFileProperty keyStoreFile;
+    private final Property<File> keyStoreFile;
     private final PatternSet patternSet = new PatternSet();
 
     @SuppressWarnings("serial")
@@ -65,7 +68,7 @@ public class SignTask implements PatternFilterable {
         this.storePass = objs.property(String.class);
         this.keyPass = objs.property(String.class);
         this.keyStoreData = objs.property(String.class);
-        this.keyStoreFile = objs.fileProperty();
+        this.keyStoreFile = objs.property(File.class);
 
         this.parent.configure(new Closure<Object>(parent) {
             @SuppressWarnings("unused")
@@ -112,11 +115,32 @@ public class SignTask implements PatternFilterable {
                (this.keyStoreData.isPresent() || this.keyStoreFile.isPresent());
     }
 
+    @SuppressWarnings("unchecked")
+    private static File getTaskArchiveFile(Zip task) {
+        try {
+            // Try getting the new thing first, to avoid potential deprecation methods
+            Provider<RegularFile> archiveFile = (Provider<RegularFile>) Objects.requireNonNull(
+                InvokerHelper.getProperty(task, "archiveFile")
+            );
+            return archiveFile.get().getAsFile();
+        } catch (Exception e) {
+            // In older gradle? hope the old thing works.
+            try {
+                return task.getArchivePath();
+            } catch (Exception suppressed) {
+                // Well, we tried. Throw the first exception since it's for the latest Gradle version.
+                // Add the first exception so it's not lost in the stacktrace, just in case.
+                e.addSuppressed(suppressed);
+                throw new IllegalStateException("Could not access the parent task's output file", e);
+            }
+        }
+    }
+
     private <T extends Task> void sign(T task) throws IOException {
         final Map<String, Entry<byte[], Long>> ignoredStuff = new HashMap<>();
 
         File tmp = this.parent.getTemporaryDir();
-        File output = this.parent.getArchiveFile().get().getAsFile();
+        File output = getTaskArchiveFile(this.parent);
         File original = new File(tmp, output.getName() + ".original");
         Files.move(output.toPath(), original.toPath(), StandardCopyOption.REPLACE_EXISTING);
 
@@ -132,7 +156,7 @@ public class SignTask implements PatternFilterable {
         if (this.keyStoreFile.isPresent()) {
             if (this.keyStoreData.isPresent())
                 throw new IllegalStateException("Both KeyStoreFile and KeyStoreData can not be set at the same time");
-            keyStore = this.keyStoreFile.get().getAsFile();
+            keyStore = this.keyStoreFile.get();
         } else if (this.keyStoreData.isPresent()) {
             byte[] data = Base64.getDecoder().decode(this.keyStoreData.get().getBytes(StandardCharsets.UTF_8));
             keyStore = new File(tmp, "keystore");
@@ -158,7 +182,7 @@ public class SignTask implements PatternFilterable {
         }
 
         if (!ignoredStuff.isEmpty())
-            writeOutputJar(output, this.parent.getArchiveFile().get().getAsFile(), ignoredStuff);
+            writeOutputJar(output, getTaskArchiveFile(this.parent), ignoredStuff);
     }
 
     private void processInputJar(File input, File output, final Map<String, Entry<byte[], Long>> unsigned) throws IOException {

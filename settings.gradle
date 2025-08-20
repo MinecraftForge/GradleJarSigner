@@ -25,7 +25,7 @@ dependencyResolutionManagement {
         // Gradle API
         // Original: https://github.com/remal-gradle-api/packages/packages/760197?version=7.0.2
         // Mirror:   https://repos.moddinglegacy.com/#/modding-legacy/name/remal/gradle-api/gradle-api/7.0.2
-        version 'gradle', '5.1'
+        version 'gradle', '4.3'
         library 'gradle', 'name.remal.gradle-api', 'gradle-api'  versionRef 'gradle'
     }
 }
