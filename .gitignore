@@ -1,8 +1,17 @@
-/.gradle/
-/.classpath
-/.project
-/.settings/
-/bin/
-/test/
-/build/
-/repo/
+# gradle
+.gradle
+build
+repo
+
+# eclipse
+.settings
+.metadata
+.classpath
+.project
+bin
+
+# intellij
+out
+*.idea
+*.iml
+

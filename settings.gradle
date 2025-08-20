@@ -1,13 +1,32 @@
-pluginManagement {
-    repositories {
-        gradlePluginPortal()
-        mavenLocal()
-        maven { url = 'https://maven.minecraftforge.net/' }
-    }
-}
-
 plugins {
-    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.6.0'
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0' // https://plugins.gradle.org/plugin/org.gradle.toolchains.foojay-resolver-convention
 }
 
 rootProject.name = 'gradlejarsigner'
+
+//@formatter:off
+dependencyResolutionManagement {
+    repositories {
+        //mavenLocal()
+        mavenCentral()
+        maven { url = 'https://maven.moddinglegacy.com' } // Gradle API
+    }
+
+    versionCatalogs.register('libs') {
+        plugin 'licenser',       'net.minecraftforge.licenser'    version '1.2.0' // https://plugins.gradle.org/plugin/net.minecraftforge.licenser
+        plugin 'gradleutils',    'net.minecraftforge.gradleutils' version '3.0.0' // https://plugins.gradle.org/plugin/net.minecraftforge.gradleutils
+        plugin 'gitversion',     'net.minecraftforge.gitversion'  version '3.0.0' // https://plugins.gradle.org/plugin/net.minecraftforge.gitversion
+        plugin 'changelog',      'net.minecraftforge.changelog'   version '3.0.0' // https://plugins.gradle.org/plugin/net.minecraftforge.changelog
+        plugin 'plugin-publish', 'com.gradle.plugin-publish'      version '1.3.1' // https://plugins.gradle.org/plugin/com.gradle.plugin-publish
+
+        // Static Analysis
+        library 'nulls', 'org.jetbrains', 'annotations' version '26.0.2'
+
+        // Gradle API
+        // Original: https://github.com/remal-gradle-api/packages/packages/760197?version=7.0.2
+        // Mirror:   https://repos.moddinglegacy.com/#/modding-legacy/name/remal/gradle-api/gradle-api/7.0.2
+        version 'gradle', '5.1'
+        library 'gradle', 'name.remal.gradle-api', 'gradle-api'  versionRef 'gradle'
+    }
+}
+//@formatter:on
