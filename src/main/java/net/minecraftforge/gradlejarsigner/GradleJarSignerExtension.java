@@ -19,6 +19,12 @@ public class GradleJarSignerExtension {
     private String keyPass;
     private String keyStoreData;
     private File keyStoreFile;
+    private Boolean verbose;
+    private Boolean preserveLastModified;
+    private String tsaUrl;
+    private String storeType;
+    private String providerClass;
+    private String providerArg;
 
     public GradleJarSignerExtension(Project project) {
         this.project = project;
@@ -49,6 +55,12 @@ public class GradleJarSignerExtension {
         set(prefix, "SIGN_KEY_PASSWORD", this::setKeyPass);
         set(prefix, "SIGN_KEYSTORE_PASSWORD", this::setStorePass);
         set(prefix, "SIGN_KEYSTORE_DATA", this::setKeyStoreData);
+        set(prefix, "SIGN_VERBOSE", v -> this.setVerbose(Boolean.parseBoolean(v)));
+        set(prefix, "SIGN_PRESERVE_LAST_MODIFIED", v -> this.setPreserveLastModified(Boolean.parseBoolean(v)));
+        set(prefix, "SIGN_TSA_URL", this::setTsaUrl);
+        set(prefix, "SIGN_STORE_TYPE", this::setStoreType);
+        set(prefix, "SIGN_PROVIDER_CLASS", this::setProviderClass);
+        set(prefix, "SIGN_PROVIDER_ARG", this::setProviderArg);
     }
 
     public void setAlias(String value) {
@@ -77,6 +89,30 @@ public class GradleJarSignerExtension {
         this.keyStoreFile = value;
     }
 
+    public void setVerbose(boolean value) {
+        this.verbose = value;
+    }
+
+    public void setPreserveLastModified(boolean value) {
+        this.preserveLastModified = value;
+    }
+
+    public void setTsaUrl(String value) {
+        this.tsaUrl = value;
+    }
+
+    public void setStoreType(String value) {
+        this.storeType = value;
+    }
+
+    public void setProviderClass(String value) {
+        this.providerClass = value;
+    }
+
+    public void setProviderArg(String value) {
+        this.providerArg = value;
+    }
+
     // Package private because I intentionally don't want getters for key info.
     void fill(SignTask task) {
         if (this.alias != null)
@@ -89,6 +125,18 @@ public class GradleJarSignerExtension {
             task.setKeyStoreData(this.keyStoreData);
         if (this.keyStoreFile != null)
             task.setKeyStoreFile(this.keyStoreFile);
+        if (this.verbose != null)
+            task.setVerbose(this.verbose);
+        if (this.preserveLastModified != null)
+            task.setPreserveLastModified(this.preserveLastModified);
+        if (this.tsaUrl != null)
+            task.setTsaUrl(this.tsaUrl);
+        if (this.storeType != null)
+            task.setStoreType(this.storeType);
+        if (this.providerClass != null)
+            task.setProviderClass(this.providerClass);
+        if (this.providerArg != null)
+            task.setProviderArg(this.providerArg);
     }
 
     private void set(String prefix, String key, Consumer<String> prop) {

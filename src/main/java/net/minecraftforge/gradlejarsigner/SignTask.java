@@ -52,6 +52,12 @@ public class SignTask implements PatternFilterable {
     private final Property<String> keyPass;
     private final Property<String> keyStoreData;
     private final Property<File> keyStoreFile;
+    private final Property<Boolean> verbose;
+    private final Property<Boolean> preserveLastModified;
+    private final Property<String> tsaUrl;
+    private final Property<String> storeType;
+    private final Property<String> providerClass;
+    private final Property<String> providerArg;
     private final PatternSet patternSet = new PatternSet();
 
     @SuppressWarnings("serial")
@@ -69,6 +75,12 @@ public class SignTask implements PatternFilterable {
         this.keyPass = objs.property(String.class);
         this.keyStoreData = objs.property(String.class);
         this.keyStoreFile = objs.property(File.class);
+        this.verbose = objs.property(Boolean.class);
+        this.preserveLastModified = objs.property(Boolean.class);
+        this.tsaUrl = objs.property(String.class);
+        this.storeType = objs.property(String.class);
+        this.providerClass = objs.property(String.class);
+        this.providerArg = objs.property(String.class);
 
         this.parent.configure(new Closure<Object>(parent) {
             @SuppressWarnings("unused")
@@ -92,6 +104,12 @@ public class SignTask implements PatternFilterable {
         in.property("signJar.storePass", this.storePass).optional(true);
         in.property("signJar.keyPass", this.keyPass).optional(true);
         in.property("signJar.keyStoreData", this.keyStoreData).optional(true);
+        in.property("signJar.verbose", this.verbose).optional(true);
+        in.property("signJar.preserveLastModified", this.preserveLastModified).optional(true);
+        in.property("signJar.tsaUrl", this.tsaUrl).optional(true);
+        in.property("signJar.storeType", this.storeType).optional(true);
+        in.property("signJar.providerClass", this.providerClass).optional(true);
+        in.property("signJar.providerArg", this.providerArg).optional(true);
         if (this.keyStoreFile.isPresent())
             in.file(this.keyStoreFile);
         return null;
@@ -173,6 +191,18 @@ public class SignTask implements PatternFilterable {
         map.put("keyStore", keyStore.getAbsolutePath());
         if (this.keyPass.isPresent())
             map.put("keypass", this.keyPass.get());
+        if (this.verbose.isPresent() && this.verbose.get())
+            map.put("verbose", Boolean.TRUE.toString());
+        if (this.preserveLastModified.isPresent() && this.preserveLastModified.get())
+            map.put("preservelastmodified", Boolean.TRUE.toString());
+        if (this.tsaUrl.isPresent())
+            map.put("tsaurl", this.tsaUrl.get());
+        if (this.storeType.isPresent())
+            map.put("storetype", this.storeType.get());
+        if (this.providerClass.isPresent())
+            map.put("providerclass", this.providerClass.get());
+        if (this.providerArg.isPresent())
+            map.put("providerarg", this.providerArg.get());
 
         try {
             this.parent.getProject().getAnt().invokeMethod("signjar", map);
@@ -276,6 +306,30 @@ public class SignTask implements PatternFilterable {
 
     public void setKeyPass(String value) {
         this.keyPass.set(value);
+    }
+
+    public void setVerbose(boolean value) {
+        this.verbose.set(value);
+    }
+
+    public void setPreserveLastModified(boolean value) {
+        this.preserveLastModified.set(value);
+    }
+
+    public void setTsaUrl(String value) {
+        this.tsaUrl.set(value);
+    }
+
+    public void setStoreType(String value) {
+        this.storeType.set(value);
+    }
+
+    public void setProviderClass(String value) {
+        this.providerClass.set(value);
+    }
+
+    public void setProviderArg(String value) {
+        this.providerArg.set(value);
     }
 
     /**

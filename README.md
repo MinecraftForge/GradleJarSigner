@@ -92,6 +92,16 @@ jarSigner {
 }
 ```
 
+There are more properties expose that match up with the [Ant SignJar Task](https://ant.apache.org/manual/Tasks/signjar.html).
+
+| argument      | property      | environment         |
+|---------------|---------------|---------------------|
+| verbose       | verbose       | SIGN_VERBOSE        |
+| tsaurl        | tsaUrl        | SIGN_TSA_URL        |
+| storetype     | storeType     | SIGN_STORE_TYPE     |
+| providerclass | providerClass | SIGN_PROVIDER_CLASS |
+| providerarg   | providerArg   | SIGN_PROVIDER_ARG   |
+
 ### Conclusion
 
 I'm sure there are improvements that could be made, but it works good enough for
