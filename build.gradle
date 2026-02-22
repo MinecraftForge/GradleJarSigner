@@ -27,6 +27,7 @@ java {
     //withJavadocJar()
 }
 
+/*
 configurations {
     // Applies the "Gradle Plugin API Version" attribute to configuration
     // This was added in Gradle 7, gives consumers useful errors if they are on an old version
@@ -38,6 +39,7 @@ configurations {
 
     named('runtimeElements', applyGradleVersionAttribute)
 }
+*/
 
 dependencies {
     // Static Analysis

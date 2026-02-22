@@ -20,15 +20,20 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.Map.Entry;
+import java.util.function.Function;
 import java.util.jar.JarOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+
+import javax.inject.Inject;
 
 import org.codehaus.groovy.runtime.InvokerHelper;
 import org.gradle.api.Task;
 import org.gradle.api.file.RegularFile;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.TaskInputs;
+import org.gradle.api.file.ArchiveOperations;
+import org.gradle.api.file.FileTree;
 import org.gradle.api.file.FileTreeElement;
 import org.gradle.api.file.FileVisitDetails;
 import org.gradle.api.file.FileVisitor;
@@ -39,6 +44,7 @@ import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.bundling.Zip;
 import org.gradle.api.tasks.util.PatternFilterable;
 import org.gradle.api.tasks.util.PatternSet;
+import org.gradle.util.GradleVersion;
 
 import groovy.lang.Closure;
 import groovy.util.MapEntry;
@@ -59,6 +65,7 @@ public class SignTask implements PatternFilterable {
     private final Property<String> providerClass;
     private final Property<String> providerArg;
     private final PatternSet patternSet = new PatternSet();
+    private final Function<Object, FileTree> zipTree;
 
     @SuppressWarnings("serial")
     SignTask(GradleJarSignerExtension ext, Zip parent, Closure<SignTask> config) {
@@ -67,6 +74,11 @@ public class SignTask implements PatternFilterable {
         this.config = config;
         if (this.config != null)
             this.config.setDelegate(this);
+
+        if (GradleVersion.current().compareTo(GradleVersion.version("6.6")) >= 0)
+            zipTree = this.parent.getProject().getObjects().newInstance(ArchiveOperationsAccess.class);
+        else
+            zipTree = this.parent.getProject()::zipTree;
 
         ObjectFactory objs = this.parent.getProject().getObjects();
 
@@ -92,6 +104,15 @@ public class SignTask implements PatternFilterable {
             }
         });
         this.parent.doLast(this::signSafe);
+    }
+
+    public static abstract class ArchiveOperationsAccess implements Function<Object, FileTree> {
+        @Inject public abstract ArchiveOperations getArchiveOperations();
+
+        @Override
+        public FileTree apply(Object t) {
+            return getArchiveOperations().zipTree(t);
+        }
     }
 
     private Object addProperties() {
@@ -133,7 +154,7 @@ public class SignTask implements PatternFilterable {
                (this.keyStoreData.isPresent() || this.keyStoreFile.isPresent());
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({ "unchecked", "deprecation" })
     private static File getTaskArchiveFile(Zip task) {
         try {
             // Try getting the new thing first, to avoid potential deprecation methods
@@ -205,7 +226,7 @@ public class SignTask implements PatternFilterable {
             map.put("providerarg", this.providerArg.get());
 
         try {
-            this.parent.getProject().getAnt().invokeMethod("signjar", map);
+            this.parent.getAnt().invokeMethod("signjar", map);
         } finally {
             if (!this.keyStoreFile.isPresent())
                 keyStore.delete();
@@ -220,7 +241,7 @@ public class SignTask implements PatternFilterable {
 
         output.getParentFile().mkdirs();
         try (JarOutputStream outs = new JarOutputStream(new BufferedOutputStream(new FileOutputStream(output)))){
-            this.parent.getProject().zipTree(input).visit(new FileVisitor() {
+            this.zipTree.apply(input).visit(new FileVisitor() {
                 @Override
                 public void visitDir(FileVisitDetails details) {
                     try {

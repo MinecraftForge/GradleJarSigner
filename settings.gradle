@@ -9,7 +9,7 @@ dependencyResolutionManagement {
     repositories {
         //mavenLocal()
         mavenCentral()
-        maven { url = 'https://maven.moddinglegacy.com' } // Gradle API
+        maven { url = 'https://maven.minecraftforge.net' } // Gradle API
     }
 
     versionCatalogs.register('libs') {
@@ -25,7 +25,7 @@ dependencyResolutionManagement {
         // Gradle API
         // Original: https://github.com/remal-gradle-api/packages/packages/760197?version=7.0.2
         // Mirror:   https://repos.moddinglegacy.com/#/modding-legacy/name/remal/gradle-api/gradle-api/7.0.2
-        version 'gradle', '4.3'
+        version 'gradle', '6.6'// We want '4.3' but we need access to ArchiveOperations
         library 'gradle', 'name.remal.gradle-api', 'gradle-api'  versionRef 'gradle'
     }
 }
